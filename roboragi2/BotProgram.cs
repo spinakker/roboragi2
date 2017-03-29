@@ -1,12 +1,15 @@
 ﻿
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Net;
+using System.Threading.Tasks;
 
 using Newtonsoft.Json;
 
 using Discord;
 using Discord.Commands;
-
 
 namespace roboragi2
 {
@@ -70,11 +73,54 @@ namespace roboragi2
                         });
             });
 
+            client.GetService<CommandService> ().CreateGroup ("archive", cgb => {
+                cgb.CreateCommand ("pics")
+                    .Description ("Saves pictures from channel.")
+                    .Parameter ("numberOfPics", ParameterType.Optional)
+                    .Do (async e => {
+                        await ArchivePics (e.Channel);
+                    });
+            });
+
 
 
             client.ExecuteAndWait (async () => {
                 await client.Connect (token: Configuration.Token, tokenType: TokenType.Bot);
             });
+        }
+
+        private async Task ArchivePics (Channel channel, int archiveLimit = 0) {
+
+            List<string> picURLs = new List<string> ();
+
+            await GetPicAddressesFromChannel (channel, picURLs);
+
+            foreach (var picURL in picURLs) {
+                client.Log.Info ("picture was found in channel:", picURL);
+            }
+
+            using (var webClient = new WebClient ()) {
+                webClient.DownloadFileAsync (new Uri (picURLs [0]), "testpic.jpeg");
+            }
+        }
+
+        private async Task GetPicAddressesFromChannel (Channel channel, List<string> picURLs, ulong? startFromThisMessageId = null) {
+
+            const int maxLimit = 100;
+            var messages = await channel.DownloadMessages (relativeMessageId: startFromThisMessageId, relativeDir: Relative.Before, limit: maxLimit);
+
+            foreach (var message in messages) {
+                if (message.Text.StartsWith ("http"))
+                    picURLs.Add (message.Text);
+            }
+
+            client.Log.Info ("number of messages found: ", messages.Length.ToString());
+
+            if (messages.Length < maxLimit)
+                return;
+            else
+                await GetPicAddressesFromChannel (channel, picURLs, messages.Last().Id);
+
         }
     }
 }
