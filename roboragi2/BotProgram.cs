@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿
+using System;
 using System.IO;
-using System.Linq;
-using System.Net;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 
 using Newtonsoft.Json;
+
+using Discord;
 
 
 namespace roboragi2
@@ -15,6 +12,7 @@ namespace roboragi2
     class BotProgram
     {
         private BotConfig Configuration { get; set; }
+        private DiscordClient client;
 
         public static void Main (string[] args) {
             if (!File.Exists ("config.json"))
@@ -27,10 +25,23 @@ namespace roboragi2
 
             var cfg = JsonConvert.DeserializeObject<BotConfig> (json);
 
+            new BotProgram (cfg).Start ();
         }
 
         public BotProgram (BotConfig config) {
             this.Configuration = config;
+        }
+
+        public void Start () {
+            client = new DiscordClient();
+
+            //stuff comes here
+
+            client.Log.Message += (s, e) => Console.WriteLine ($"[{e.Severity}] {e.Source}: {e.Message}");
+
+            client.ExecuteAndWait (async () => {
+                await client.Connect (token: Configuration.Token, tokenType: TokenType.Bot);
+            });
         }
     }
 }
