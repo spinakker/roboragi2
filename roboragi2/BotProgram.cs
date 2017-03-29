@@ -78,7 +78,7 @@ namespace roboragi2
                     .Description ("Saves pictures from channel.")
                     .Parameter ("numberOfPics", ParameterType.Optional)
                     .Do (async e => {
-                        await ArchivePics (e.Channel);
+                        await ArchivePics (e.Channel, Int32.Parse(e.GetArg ("numberOfPics")));
                     });
             });
 
@@ -91,27 +91,49 @@ namespace roboragi2
 
         private async Task ArchivePics (Channel channel, int archiveLimit = 0) {
 
-            List<string> picURLs = new List<string> ();
+            List<string> picUrLs = new List<string> ();
 
-            await GetPicAddressesFromChannel (channel, picURLs);
+            await GetPicAddressesFromChannel (channel, picUrLs, null, archiveLimit);
 
-            foreach (var picURL in picURLs) {
-                client.Log.Info ("picture was found in channel:", picURL);
-            }
+            client.Log.Info ("number of pictures archived: ", picUrLs.Count.ToString());
 
             using (var webClient = new WebClient ()) {
-                webClient.DownloadFileAsync (new Uri (picURLs [0]), "testpic.jpeg");
+                string newFolderName = channel.Name;
+                if (!System.IO.Directory.Exists (newFolderName))
+                  System.IO.Directory.CreateDirectory (newFolderName);
+
+                foreach (var uriString in picUrLs) {
+                    string filename = uriString.Split ('/').Last ();
+
+                    if (!String.IsNullOrEmpty (filename) && filename.Length > 20) {
+                        var extension = filename.Split ('.').Last ();
+                        filename = filename.Substring (0, 10) + '.' + extension;
+                    }
+
+                    string path = newFolderName + '\\' + filename;
+
+                    try {
+                        webClient.DownloadFile (new Uri (uriString), path);
+                    }
+                    catch (Exception e) {
+                        client.Log.Error (e.Source, e.Message);
+                    }
+                }
+                
             }
         }
 
-        private async Task GetPicAddressesFromChannel (Channel channel, List<string> picURLs, ulong? startFromThisMessageId = null) {
+        private async Task GetPicAddressesFromChannel (Channel channel, List<string> picURLs, ulong? startFromThisMessageId, int numberOfPics) {
 
             const int maxLimit = 100;
             var messages = await channel.DownloadMessages (relativeMessageId: startFromThisMessageId, relativeDir: Relative.Before, limit: maxLimit);
 
             foreach (var message in messages) {
                 if (message.Text.StartsWith ("http"))
-                    picURLs.Add (message.Text);
+                    if (picURLs.Count < numberOfPics)
+                        picURLs.Add (message.Text);
+                    else
+                        return;
             }
 
             client.Log.Info ("number of messages found: ", messages.Length.ToString());
@@ -119,7 +141,7 @@ namespace roboragi2
             if (messages.Length < maxLimit)
                 return;
             else
-                await GetPicAddressesFromChannel (channel, picURLs, messages.Last().Id);
+                await GetPicAddressesFromChannel (channel, picURLs, messages.Last().Id, numberOfPics);
 
         }
     }
