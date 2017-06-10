@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 using Newtonsoft.Json;
@@ -129,11 +130,22 @@ namespace roboragi2
             var messages = await channel.DownloadMessages (relativeMessageId: startFromThisMessageId, relativeDir: Relative.Before, limit: maxLimit);
 
             foreach (var message in messages) {
-                if (message.Text.StartsWith ("http"))
-                    if (picURLs.Count < numberOfPics)
-                        picURLs.Add (message.Text);
+                var messageText = message.Text;
+                string possiblePictureUrl = String.Empty;
+
+                if (!messageText.StartsWith ("http"))
+                    possiblePictureUrl = Regex.Match (messageText,
+                        @"((http|ftp|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&amp;:/~\+#]*[\w\-\@?^=%&amp;/~\+#])?)").ToString();
+
+                if (message.Attachments.Length > 0)
+                    possiblePictureUrl = message.Attachments[0].Url;
+
+                if (possiblePictureUrl.Length > 0) {
+                    if (possiblePictureUrl.Length > 0 && picURLs.Count < numberOfPics)
+                        picURLs.Add (possiblePictureUrl);
                     else
                         return;
+                }
             }
 
             client.Log.Info ("number of messages found: ", messages.Length.ToString());
