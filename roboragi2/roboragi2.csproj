@@ -99,6 +99,8 @@
   <ItemGroup>
     <Compile Include="BotConfig.cs" />
     <Compile Include="BotProgram.cs" />
+    <Compile Include="Archiver.cs" />
+    <Compile Include="Commands.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
